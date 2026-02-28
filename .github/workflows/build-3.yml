@@ -1,8 +1,8 @@
 name: Build 3 Release
 
 on:
-    #release:
-    #    types: [published]
+    release:
+        types: [published]
     workflow_dispatch:
 
 jobs:
