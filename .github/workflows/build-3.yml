@@ -235,7 +235,6 @@ jobs:
                   body: |
                     Auto-generated build for ${{ inputs.version }}
                     
-                    Workflow Run: #${{ github.run_number }}
                   draft: false
                   prerelease: false
                   files: |
@@ -252,7 +251,7 @@ jobs:
         - name: Delete workflow runs
           uses: Mattraks/delete-workflow-runs@v2
           with:
-              retain_days: 1
+              retain_days: 0
               keep_minimum_runs: 2
 
         - name: Delete old Releases
