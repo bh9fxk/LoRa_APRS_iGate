@@ -1,12 +1,17 @@
 name: Build 3 Release
 
+# 👇 修改点：仅保留版本号输入，类型限制为语义化版本格式提示
 on:
-    release:
-        types: [published]
     workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version Tag (e.g., v3.2.0)'
+                required: true
+                default: 'v3.2.0'
 
 jobs:
     build:
+        name: Build ${{ matrix.target.name }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -108,6 +113,7 @@ jobs:
                       chip: esp32c3
                     - name: ESP32_C3_OctopusLab_LoRa_laut
                       chip: esp32c3
+
         steps:
             - uses: actions/checkout@v3
 
@@ -190,12 +196,69 @@ jobs:
             - name: Archive Files
               run: zip -r installer.zip installer/
 
-            - name: Upload Release Asset
-              uses: actions/upload-release-asset@v1
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: firmware-${{ matrix.target.name }}
+                  path: ./installer.zip
+                  retention-days: 1
+                  if-no-files-found: error
+
+    release:
+        name: Create Release & Upload All Assets
+        needs: [build]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download All Artifacts
+              uses: actions/download-artifact@v4
+              with:
+                  path: ./all_firmwares
+                  pattern: firmware-*
+                  merge-multiple: false
+
+            - name: Prepare Assets List
+              run: |
+                  cd ./all_firmwares
+                  ls -d firmware-* | while read dir; do
+                      target_name=${dir#firmware-}
+                      mv "$dir/installer.zip" "$target_name.zip"
+                      echo "Prepared: $target_name.zip"
+                  done
+                  ls -lh *.zip
+
+            - name: Create Release and Upload Assets
+              uses: softprops/action-gh-release@v2
+              with:
+                  # 👇 直接使用输入的版本号作为 Tag
+                  tag_name: ${{ inputs.version }}
+                  name: ${{ inputs.version }}
+                  body: |
+                    Auto-generated build for ${{ inputs.version }}
+                    
+                    Workflow Run: #${{ github.run_number }}
+                  draft: false
+                  prerelease: false
+                  files: |
+                    ./all_firmwares/*.zip
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                  upload_url: ${{ github.event.release.upload_url }}
-                  asset_path: ./installer.zip
-                  asset_name: ${{ matrix.target.name }}.zip
-                  asset_content_type: application/zip
+
+    delete:
+        name: Delete old workflow
+        needs: [release]
+        runs-on: ubuntu-22.04
+    
+        steps:
+        - name: Delete workflow runs
+          uses: Mattraks/delete-workflow-runs@v2
+          with:
+              retain_days: 1
+              keep_minimum_runs: 2
+
+        - name: Delete old Releases
+          uses: dev-drprasad/delete-older-releases@v0.3.4
+          with:
+              keep_latest: 3
+              delete_tags: true
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
