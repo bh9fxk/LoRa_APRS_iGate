@@ -56,6 +56,8 @@ jobs:
                       chip: esp32
                     - name: ttgo-t-beam-v1_SX1268
                       chip: esp32
+                    - name: ttgo-t-beam-v1_SX1262
+                      chip: esp32
                     - name: ttgo-t-beam-v1_2_SX1262
                       chip: esp32
                     - name: ttgo_t_deck_plus
@@ -114,7 +116,7 @@ jobs:
 
             - name: Build target
               run: |
-                  pio run -e ${{ matrix.target.name }} 
+                  pio run -e ${{ matrix.target.name }}
 
             - name: Build FS
               run: |
@@ -129,7 +131,7 @@ jobs:
                   cp .pio/build/${{ matrix.target.name }}/partitions.bin installer/firmware/
                   cp .pio/build/${{ matrix.target.name }}/spiffs.bin installer/firmware/
                   cp ~/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin installer/firmware/
-              
+
             - name: Merge for web flashing
               run: |
                   if [ "${{ matrix.target.chip }}" == "esp32" ]; then

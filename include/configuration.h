@@ -32,6 +32,7 @@ public:
 
 class WiFi_Auto_AP {
 public:
+    bool    enabled;            // Enable Auto AP
     String  password;
     int     timeout;
 };
@@ -195,9 +196,9 @@ public:
     REMOTE_MANAGEMENT       remoteManagement;
     MQTT                    mqtt;
 
+    void setup();
     void setDefaultValues();
     bool writeFile();
-    Configuration();
 
 private:
     bool readFile();

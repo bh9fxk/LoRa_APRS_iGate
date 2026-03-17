@@ -98,7 +98,7 @@ namespace WEB_Utils {
     }
 
     void handleReceivedPackets(AsyncWebServerRequest *request) {
-        StaticJsonDocument<1536> data;
+        JsonDocument data;
 
         for (int i = 0; i < receivedPackets.size(); i++) {
             data[i]["rxTime"]   = receivedPackets[i].rxTime;
@@ -161,7 +161,7 @@ namespace WEB_Utils {
 
         Config.callsign                     = getParamStringSafe("callsign", Config.callsign);
         Config.tacticalCallsign             = getParamStringSafe("tacticalCallsign", Config.tacticalCallsign);
-
+        Config.wifiAutoAP.enabled           = request->hasParam("wifi.autoAP.enabled", true);
         Config.wifiAutoAP.password          = getParamStringSafe("wifi.autoAP.password", Config.wifiAutoAP.password);
         Config.wifiAutoAP.timeout           = getParamIntSafe("wifi.autoAP.timeout", Config.wifiAutoAP.timeout);
 
