@@ -115,9 +115,9 @@ jobs:
                       chip: esp32c3
 
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v6.0.1
 
-            - uses: actions/setup-python@v4
+            - uses: actions/setup-python@v6.2.0
               with:
                   python-version: "3.9"
 
@@ -197,7 +197,7 @@ jobs:
               run: zip -r installer.zip installer/
 
             - name: Upload Artifact
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7.0.0
               with:
                   name: firmware-${{ matrix.target.name }}
                   path: ./installer.zip
@@ -227,7 +227,7 @@ jobs:
                   ls -lh *.zip
 
             - name: Create Release and Upload Assets
-              uses: softprops/action-gh-release@v2
+              uses: softprops/action-gh-release@v8.0.1
               with:
                   # 👇 直接使用输入的版本号作为 Tag
                   tag_name: ${{ inputs.version }}
