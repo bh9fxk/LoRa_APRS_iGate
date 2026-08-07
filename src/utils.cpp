@@ -291,6 +291,12 @@ namespace Utils {
                 if (Config.syslog.logBeaconOverTCPIP) SYSLOG_Utils::log(1, "tcp" + beaconPacket, 0, 0.0, 0);   // APRSIS TX
             }
 
+            // 新增：IS 与 RF 之间延时 1.5 秒（可改成 1000 或 2000）
+            if ((Config.beacon.sendViaAPRSIS && Config.aprs_is.active && passcodeValid && !backupDigiMode) &&(Config.beacon.sendViaRF || backupDigiMode))
+            {
+                delay(2000);   // 2 秒，按需调整 2026-8-7
+            }
+
             if (Config.beacon.sendViaRF || backupDigiMode) {
                 Utils::println("-- Sending Beacon to RF --");
                 displayShow(firstLine, secondLine, thirdLine, fourthLine, fifthLine, sixthLine, "SENDING DIGI BEACON", 0);
