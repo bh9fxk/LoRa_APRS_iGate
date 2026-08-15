@@ -15,7 +15,7 @@ jobs:
                 - name: ttgo-lora32-v21
                   chip: esp32
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-python@v4
               with:
