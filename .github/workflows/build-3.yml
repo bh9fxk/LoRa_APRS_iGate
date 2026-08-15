@@ -227,7 +227,7 @@ jobs:
                   ls -lh *.zip
 
             - name: Create Release and Upload Assets
-              uses: softprops/action-gh-release@v2.6.1
+              uses: softprops/action-gh-release@v3.0.2
               with:
                   # 👇 直接使用输入的版本号作为 Tag
                   tag_name: ${{ inputs.version }}
