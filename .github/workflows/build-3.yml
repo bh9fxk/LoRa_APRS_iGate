@@ -115,7 +115,7 @@ jobs:
                       chip: esp32c3
 
         steps:
-            - uses: actions/checkout@v6.0.1
+            - uses: actions/checkout@v7
 
             - uses: actions/setup-python@v7
               with:
