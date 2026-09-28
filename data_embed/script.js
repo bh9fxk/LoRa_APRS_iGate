@@ -96,7 +96,7 @@ function loadSettings(settings) {
         networksContainer.appendChild(networkElement);
         networkCount++;
     });
-    document.getElementById("startupDelay").value                       = settings.startupDelay;
+    document.getElementById("startupDelay").value                       = settings.other.startupDelay;
 
     // APRS-IS
     document.getElementById("aprs_is.active").checked                   = settings.aprs_is.active;
@@ -226,6 +226,7 @@ function loadSettings(settings) {
         document.getElementById("tnc.enableSerial").checked             = settings.tnc.enableSerial;
         document.getElementById("tnc.acceptOwn").checked                = settings.tnc.acceptOwn;
         document.getElementById("tnc.aprsBridgeActive").checked         = settings.tnc.aprsBridgeActive;
+        document.getElementById("tnc.kissProtocol").value                = settings.tnc.kissProtocol ? "KISS" : "TNC2";
     }
 
     // MQTT
@@ -275,6 +276,8 @@ function loadSettings(settings) {
     // NTP
     document.getElementById("ntp.server").value                         = settings.ntp.server;
     document.getElementById("ntp.gmtCorrection").value                  = settings.ntp.gmtCorrection;
+
+    clampOutOfRangeInputs();
 
     updateImage();
 }
@@ -490,7 +493,6 @@ function toggleWiFiAutoAPFields() {
     if (autoAPConfig) autoAPConfig.style.display = isEnabled ? 'block' : 'none';
 }
 
-
 document.querySelector(".new button").addEventListener("click", function () {
     const networksContainer = document.querySelector(".list-networks");
 
@@ -659,10 +661,274 @@ function setMapMessage(text) {
     }
 }
 
+
+/*
+ * APRS symbol renderer for Stations Map
+ *
+ * s.symbol contains APRS table + symbol code, for example:
+ *   "/>"  Primary table
+ *   "\\>" Alternate table
+ *   "L&"  Alternate table with overlay
+ *
+ * Sprite layout:
+ *   aprs-symbols-24-0.png = Primary table
+ *   aprs-symbols-24-1.png = Alternate table
+ *   aprs-symbols-24-2.png = Overlay characters
+ */
+
+function getAprsSymbolIcon(symbol, callsign = "") {
+
+    if (!symbol || String(symbol).length < 2) {
+        return null;
+    }
+
+    const value = String(symbol);
+
+    let table = value.charAt(0);
+    let code  = value.charAt(1);
+    let overlay = null;
+
+    /*
+     * Standard APRS:
+     * "/"  = Primary
+     * "\\" = Alternate
+     *
+     * A-Z / 0-9 / a-j in table position are overlays
+     * for the Alternate table.
+     */
+    if (
+        table !== "/" &&
+        table !== "\\"
+    ) {
+        overlay = table;
+        table = "\\";
+    }
+
+    const ascii = code.charCodeAt(0);
+
+    /*
+     * APRS printable symbol codes are ASCII 33..126.
+     */
+    if (
+        ascii < 33 ||
+        ascii > 126
+    ) {
+        return null;
+    }
+
+    const index = ascii - 33;
+
+    /*
+     * Sprite sheet contains 16 columns x 6 rows.
+     * Each cell occupies 24x24 CSS px; the
+     * "background-size" below tells the browser to scale the sheet back
+     * down to its original 24px-per-cell layout, so all position math
+     * stays in 24px units regardless of source resolution.
+     */
+    const columns = 16;
+    const sheetSize = "384px 144px"; // 16*24 x 6*24, same for all 3 sheets
+
+    const col = index % columns;
+    const row = Math.floor(index / columns);
+
+    const sprite =
+        table === "/"
+            ? "/aprs-symbols-24-0.png"
+            : "/aprs-symbols-24-1.png";
+
+    const x = -(col * 24);
+    const y = -(row * 24);
+
+    let overlayHtml = "";
+
+    if (overlay) {
+
+        let displayOverlay = overlay;
+
+        /*
+         * APRS compressed numeric overlay:
+         * a-j -> 0-9
+         */
+        if (
+            overlay >= "a" &&
+            overlay <= "j"
+        ) {
+            displayOverlay =
+                String(
+                    overlay.charCodeAt(0) -
+                    "a".charCodeAt(0)
+                );
+        }
+
+        /*
+         * The overlay sprite sheet does NOT follow the ascii-33 layout used
+         * by the primary/alternate tables above; it has its own grid:
+         * "0" at row 0 col 15, "1".."9" at row 1 col 0-8, "A".."P" at row 2,
+         * "Q".."Z" at row 3 col 0-9. Verified by hand against the PNG.
+         */
+        let overlayCol = null;
+        let overlayRow = null;
+
+        if (displayOverlay === "0") {
+            overlayCol = 15;
+            overlayRow = 0;
+        } else if (displayOverlay >= "1" && displayOverlay <= "9") {
+            overlayCol = displayOverlay.charCodeAt(0) - "1".charCodeAt(0);
+            overlayRow = 1;
+        } else if (displayOverlay >= "A" && displayOverlay <= "P") {
+            overlayCol = displayOverlay.charCodeAt(0) - "A".charCodeAt(0);
+            overlayRow = 2;
+        } else if (displayOverlay >= "Q" && displayOverlay <= "Z") {
+            overlayCol = displayOverlay.charCodeAt(0) - "Q".charCodeAt(0);
+            overlayRow = 3;
+        }
+
+        if (overlayCol !== null) {
+            const ox = -(overlayCol * 24);
+            const oy = -(overlayRow * 24);
+
+            overlayHtml = `
+                <span style="
+                    position:absolute;
+                    left:0;
+                    top:0;
+                    width:24px;
+                    height:24px;
+                    background-image:url('/aprs-symbols-24-2.png');
+                    background-repeat:no-repeat;
+                    background-position:${ox}px ${oy}px;
+                    background-size:${sheetSize};
+                    pointer-events:none;
+                "></span>
+            `;
+        }
+    }
+
+    return L.divIcon({
+        className: "",
+        html: `
+            <div style="
+                position:relative;
+                width:24px;
+                height:24px;
+                background-image:url('${sprite}');
+                background-repeat:no-repeat;
+                background-position:${x}px ${y}px;
+                background-size:${sheetSize};
+            ">
+                ${overlayHtml}
+
+                <span style="
+                    position:absolute;
+                    left:27px;
+                    top:6px;
+                    font:600 10px Arial,sans-serif;
+                    line-height:12px;
+                    white-space:nowrap;
+                    color:#111;
+                    text-shadow:
+                        -1px -1px 0 #fff,
+                         1px -1px 0 #fff,
+                        -1px  1px 0 #fff,
+                         1px  1px 0 #fff;
+                    pointer-events:none;
+                ">${callsign}</span>
+            </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+        popupAnchor: [0, -12]
+    });
+}
+
+
+let mapStationsCache = [];
+let mapRouteLayer = null;
+
+function getUsedDigipeaters(path) {
+    if (!path) return [];
+
+    return path
+        .split(",")
+        .map((x) => x.trim())
+        .filter((x) => x.endsWith("*"))
+        .map((x) => x.replace(/\*+$/, ""))
+        .filter((x) =>
+            x &&
+            !x.startsWith("WIDE") &&
+            !x.startsWith("TRACE") &&
+            !x.startsWith("TCPIP") &&
+            !x.startsWith("TCPXX") &&
+            !x.startsWith("qA")
+        );
+}
+
+
+function describeMapPath(station) {
+    const digis = getUsedDigipeaters(station.path);
+
+    // heardDirect viene del firmware: true si ALGUNA VEZ se oyo directo,
+    // aunque el ultimo paquete haya llegado repetido.
+    if (station.heardDirect && digis.length) {
+        return "Direct+Via: " + digis.join(" → ");
+    }
+
+    if (digis.length) {
+        return "Via: " + digis.join(" → ");
+    }
+
+    return "Direct";
+}
+
+
+function clearMapRoute() {
+    if (mapRouteLayer && mapInstance) {
+        mapInstance.removeLayer(mapRouteLayer);
+    }
+    mapRouteLayer = null;
+}
+
+
+function drawStationRoute(station) {
+    if (!mapInstance || !iGateLatLng) return;
+
+    clearMapRoute();
+
+    const points = [
+        L.latLng(station.lat, station.lon)
+    ];
+
+    const digis = getUsedDigipeaters(station.path);
+
+    digis.forEach((digiCall) => {
+        const digi = mapStationsCache.find((s) =>
+            String(s.callsign || "").toUpperCase() === digiCall.toUpperCase()
+        );
+
+        if (digi && !(digi.lat === 0 && digi.lon === 0)) {
+            points.push(L.latLng(digi.lat, digi.lon));
+        }
+    });
+
+    points.push(iGateLatLng);
+
+    const routeColor = digis.length > 0 ? "#2e7d32" : "#1565c0";
+
+    mapRouteLayer = L.polyline(points, {
+        color: routeColor,
+        weight: 3,
+        opacity: 0.9
+    }).addTo(mapInstance);
+}
+
+
 function loadMapStations(stations) {
     if (!mapMarkers) return;
 
+    mapStationsCache = stations || [];
+
     mapMarkers.clearLayers();
+    clearMapRoute();
 
     let drawn = 0;
     (stations || []).forEach((s) => {
@@ -671,15 +937,52 @@ function loadMapStations(stations) {
         const popup = `<b>${s.callsign}</b>`
             + (s.lastHeard ? `<br>Last: ${s.lastHeard}` : "")
             + `<br>RSSI ${s.RSSI} / SNR ${s.SNR}`
-            + `<br>Packets: ${s.count}`;
+            + `<br>Packets: ${s.count}`
+            + `<br><b>${describeMapPath(s)}</b>`
+            + (s.path ? `<br><small>Path: ${s.path}</small>` : "");
 
-        L.circleMarker([s.lat, s.lon], {
-            radius: 6,
-            color: "#1d6fe0",        // borde
-            weight: 2,
-            fillColor: "#3b8cff",    // relleno
-            fillOpacity: 0.9
-        }).bindPopup(popup).addTo(mapMarkers);
+        const aprsIcon =
+            getAprsSymbolIcon(s.symbol, s.callsign);
+
+        if (aprsIcon) {
+
+            const marker = L.marker(
+                [s.lat, s.lon],
+                {
+                    icon: aprsIcon
+                }
+            )
+            .bindPopup(popup)
+            .addTo(mapMarkers);
+
+            marker.on("mouseover", function () {
+                drawStationRoute(s);
+            });
+
+            marker.on("mouseout", function () {
+                clearMapRoute();
+            });
+
+        } else {    // Fallback: station with missing or invalid APRS symbol
+            const marker = L.circleMarker([s.lat, s.lon], {
+                radius: 6,
+                color: "#1d6fe0",
+                weight: 2,
+                fillColor: "#3b8cff",
+                fillOpacity: 0.9
+            })
+            .bindPopup(popup)
+            .addTo(mapMarkers);
+
+            marker.on("mouseover", function () {
+                drawStationRoute(s);
+            });
+
+            marker.on("mouseout", function () {
+                clearMapRoute();
+            });
+        }
+
         drawn++;
     });
 
@@ -802,3 +1105,70 @@ window.showMap = function () {
         }
     }, 15000);
 }
+
+
+/* ------------------------------------------------- keeping the form submittable
+ * A control that fails HTML5 validation blocks the whole form, and when it sits in
+ * a panel that is not the visible one the browser cannot show its bubble either:
+ * pressing Save then does nothing at all -- no message, no request, no clue. Two
+ * guards against that: pull stored values back inside the allowed range on load,
+ * and, if validation still fails, open the section holding the offending control
+ * and show what is wrong.
+ */
+function clampOutOfRangeInputs() {
+    const fixed = [];
+
+    document.querySelectorAll("#configuration input[type=number]").forEach((el) => {
+        if (el.disabled || el.value === "") return;
+
+        const value = parseFloat(el.value);
+        if (isNaN(value)) return;
+
+        const min = el.min !== "" ? parseFloat(el.min) : null;
+        const max = el.max !== "" ? parseFloat(el.max) : null;
+
+        let clamped = value;
+        if (max !== null && value > max) clamped = max;
+        if (min !== null && value < min) clamped = min;
+
+        if (clamped !== value) {
+            el.value = clamped;
+            fixed.push((el.name || el.id) + ": " + value + " &rarr; " + clamped);
+        }
+    });
+
+    if (fixed.length) {
+        showToast("Stored values outside the allowed range, adjusted:<br>" + fixed.join("<br>")
+                  + "<br><small>Save to keep them.</small>");
+    }
+}
+
+let invalidFieldReported = false;
+
+form.addEventListener("invalid", function (event) {
+    const el = event.target;
+
+    if (!invalidFieldReported) {          // only the first one: the rest would pile up toasts
+        invalidFieldReported = true;
+        setTimeout(() => { invalidFieldReported = false; }, 500);
+
+        const section = el.closest(".panel-section");
+        if (section) {
+            const link = document.querySelector('.side-link[data-target="' + section.id + '"]');
+            if (link) {
+                link.click();             // reuses the sidebar switcher (also shows the config view)
+            } else {
+                document.querySelectorAll(".panel-section").forEach((s) => s.classList.remove("active"));
+                section.classList.add("active");
+                document.getElementById("configuration").classList.remove("d-none");
+            }
+        }
+
+        showToast("<b>" + (el.name || el.id) + "</b>: " + (el.validationMessage || "invalid value"));
+
+        setTimeout(() => {
+            el.focus();
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+        }, 0);
+    }
+}, true);
