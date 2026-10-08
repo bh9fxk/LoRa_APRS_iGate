@@ -24,6 +24,7 @@
 
 class ReceivedPacket {
 public:
+    String  rxDate;
     String  rxTime;
     String  packet;
     int     RSSI;
@@ -39,6 +40,7 @@ namespace Utils {
     void    checkBeaconInterval();
     void    checkDisplayInterval();
     void    validateFreqs();
+    String  padForDisplay(const String& text);
     void    updateLoRaPacketDisplayInfo(APRSPacket& aprsPacket, const uint8_t packetType);
     void    updateAPRSISPacketDisplayInfo(const String& packet);
     void    print(const String& text);

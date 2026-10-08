@@ -31,7 +31,6 @@
 extern Configuration    Config;
 extern uint32_t         lastScreenOn;
 extern APRSPacket       lastAprsPacket;
-extern String           iGateBeaconPacket;
 extern String           firstLine;
 extern String           secondLine;
 extern String           thirdLine;
@@ -110,9 +109,10 @@ namespace DIGI_Utils {
             int digiMode        = Config.digi.mode;
             String tempPath     = path;
 
-            if (tempPath.indexOf("WIDE1-1") != -1 && (digiMode == 1 || digiMode == 2)) {    // WIDE1-1
+            if (tempPath.indexOf("WIDE1-1") != -1 && (digiMode == 1 || digiMode == 2 || backupDigiMode)) {    // WIDE1-1
                 if (tempPath.indexOf("*") != -1 ) return "";                                // "*" shouldn't be in WIDE1-1 (only) type of packet
-                tempPath.replace("WIDE1-1", stationCallsign + "*");
+                if (pathTokenIndex(tempPath, "WIDE1-1") != 0) return "";                    // WIDE1-1 must be the first hop
+                tempPath = stationCallsign + "*" + tempPath.substring(7);
             } else if (tempPath.indexOf("WIDE2-") != -1 && digiMode == 2) {                 // WIDE2-n Digipeater
                 tempPath = cleanPath(path);
                 int idx = pathTokenIndex(tempPath, "WIDE2-1");
@@ -130,8 +130,10 @@ namespace DIGI_Utils {
             packetToRepeat = packet.substring(0, packet.indexOf(",") + 1);
             packetToRepeat += tempPath;
         } else {   // CrossFreq Digipeater
+            String cleanedPath = cleanPath(path);
+            if (pathTokenIndex(cleanedPath, stationCallsign) != -1 ||
+                pathTokenIndex(cleanedPath, stationCallsign + "*") != -1) return "";         // stationCallsign shouldn't be in path (exact token, path only)
             packetToRepeat = cleanPath(packet.substring(0, suffixIndex));
-            if (packetToRepeat.indexOf(stationCallsign) != -1) return "";                   // stationCallsign shouldn't be in path
             packetToRepeat += ",";
             packetToRepeat += stationCallsign;
             packetToRepeat += "*";

@@ -19,6 +19,7 @@
 #include <ArduinoJson.h>
 #include "network_manager.h"
 #include "configuration.h"
+#include "lora_utils.h"
 #include "ota_utils.h"
 #include "web_utils.h"
 #include "map_utils.h"
@@ -160,6 +161,7 @@ namespace WEB_Utils {
         JsonDocument data;
 
         for (int i = 0; i < receivedPackets.size(); i++) {
+            data[i]["rxDate"]   = receivedPackets[i].rxDate;
             data[i]["rxTime"]   = receivedPackets[i].rxTime;
             data[i]["packet"]   = receivedPackets[i].packet;
             data[i]["RSSI"]     = receivedPackets[i].RSSI;
@@ -245,6 +247,7 @@ namespace WEB_Utils {
         Config.beacon.latitude              = getParamDoubleSafe("beacon.latitude", Config.beacon.latitude);
         Config.beacon.longitude             = getParamDoubleSafe("beacon.longitude", Config.beacon.longitude);
         Config.beacon.comment               = getParamStringSafe("beacon.comment", Config.beacon.comment);
+        Config.beacon.rfCommentEveryXBeacons = getParamIntSafe("beacon.rfCommentEveryXBeacons", Config.beacon.rfCommentEveryXBeacons);
         Config.beacon.overlay               = getParamStringSafe("beacon.overlay", Config.beacon.overlay);
         Config.beacon.symbol                = getParamStringSafe("beacon.symbol", Config.beacon.symbol);
         Config.beacon.path                  = getParamStringSafe("beacon.path", Config.beacon.path);
@@ -275,7 +278,7 @@ namespace WEB_Utils {
         Config.loramodule.txSpreadingFactor = getParamIntSafe("lora.txSpreadingFactor", Config.loramodule.txSpreadingFactor);
         Config.loramodule.txCodingRate4     = getParamIntSafe("lora.txCodingRate4", Config.loramodule.txCodingRate4);
         Config.loramodule.txSignalBandwidth = getParamIntSafe("lora.txSignalBandwidth", Config.loramodule.txSignalBandwidth);
-        Config.loramodule.power             = getParamIntSafe("lora.power", Config.loramodule.power);
+        Config.loramodule.power             = LoRa_Utils::validPower(getParamIntSafe("lora.power", Config.loramodule.power));  // saved as the power the radio chip really uses
         if (Config.loramodule.txActive)
             Config.loramodule.cadActive     = request->hasParam("lora.cadActive", true);
 
