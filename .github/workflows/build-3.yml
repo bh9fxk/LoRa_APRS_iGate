@@ -213,7 +213,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Download All Artifacts
-              uses: actions/download-artifact@v8.0.1
+              uses: actions/download-artifact@v8.0.2
               with:
                   path: ./all_firmwares
                   pattern: firmware-*
